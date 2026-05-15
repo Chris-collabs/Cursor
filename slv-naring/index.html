@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Näringskollen — Livsmedelsverket</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Näringskollen</h1>
+      <p class="lead">
+        Sök bland livsmedel från
+        <strong>Livsmedelsverkets livsmedelsdatabas</strong>, välj en rad och
+        ange mängd i gram. Värden skalas från databasens referens (100 g).
+        <strong>Energiprocent (E%)</strong> beräknas från protein (4 kcal/g),
+        fett totalt (9), tillgängliga kolhydrater (4), kostfiber (2) och
+        alkohol (7) och <strong>summerar till 100 %</strong>. Kolumnen
+        <strong>E% av fett</strong> visar fördelning inom fettsyror. Under
+        <strong>Dagens mat</strong> kan du logga flera livsmedel och se
+        dagsummering (sparad lokalt i webbläsaren).
+      </p>
+
+      <section class="panel" aria-labelledby="load-heading">
+        <h2 id="load-heading">Ladda data</h2>
+        <p id="load-status" class="status">Startar…</p>
+      </section>
+
+      <section class="panel" aria-labelledby="search-heading">
+        <h2 id="search-heading">Sök livsmedel</h2>
+        <label for="search">Filtrera på namn</label>
+        <input
+          id="search"
+          type="search"
+          autocomplete="off"
+          placeholder="Till exempel havregryn, lax, mjölk…"
+          disabled
+        />
+        <p class="meta">
+          Visar högst 80 träffar åt gången. Skriv för att avgränsa listan.
+        </p>
+        <ul id="food-list" class="food-list" aria-label="Träfflista"></ul>
+      </section>
+
+      <section id="detail-panel" class="panel hidden" aria-live="polite">
+        <h2 id="food-title">Valt livsmedel</h2>
+        <p id="detail-status" class="status"></p>
+
+        <div class="portion-row">
+          <div>
+            <label for="portion-preset">Typisk mängd (från databasen)</label>
+            <select id="portion-preset" disabled>
+              <option value="">Egen vikt — ange gram nedan</option>
+            </select>
+            <p id="portion-hint" class="meta"></p>
+          </div>
+        </div>
+
+        <div class="row row-with-actions">
+          <div>
+            <label for="grams">Mängd (g)</label>
+            <input id="grams" type="number" min="0" step="0.1" value="100" />
+          </div>
+          <div class="row-actions">
+            <button type="button" id="btn-add-diary" class="btn" disabled>
+              Lägg till i dagbok
+            </button>
+          </div>
+        </div>
+
+        <h2 style="margin-top: 1rem">Energi</h2>
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th class="num">Värde</th>
+              <th>Enhet</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Energi</td>
+              <td class="num" id="summary-kcal">—</td>
+              <td>kcal (databas)</td>
+            </tr>
+            <tr>
+              <td>Energi</td>
+              <td class="num" id="summary-kj">—</td>
+              <td>kJ (databas)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div id="pfc-wrap" class="hidden">
+          <h2>Energiprocent (E%)</h2>
+          <p class="meta">
+            Diagrammet följer samma femkomponentsmodell som tabellen (E% summerar
+            till 100 %).
+          </p>
+          <div class="pfc-bar" role="img" aria-label="Energifördelning">
+            <span id="pfc-prot" style="background: #0d9488; width: 0"></span>
+            <span id="pfc-fat" style="background: #ca8a04; width: 0"></span>
+            <span id="pfc-cho" style="background: #2563eb; width: 0"></span>
+            <span id="pfc-fib" style="background: #78716c; width: 0"></span>
+            <span id="pfc-alc" style="background: #9333ea; width: 0"></span>
+          </div>
+          <div class="pfc-legend">
+            <span
+              ><span class="dot" style="background: #0d9488"></span>Protein
+              <strong id="leg-prot">—</strong></span
+            >
+            <span
+              ><span class="dot" style="background: #ca8a04"></span>Fett
+              <strong id="leg-fat">—</strong></span
+            >
+            <span
+              ><span class="dot" style="background: #2563eb"></span>Kolhydrater
+              <strong id="leg-cho">—</strong></span
+            >
+            <span
+              ><span class="dot" style="background: #78716c"></span>Kostfiber
+              <strong id="leg-fib">—</strong></span
+            >
+            <span
+              ><span class="dot" style="background: #9333ea"></span>Alkohol
+              <strong id="leg-alc">—</strong></span
+            >
+          </div>
+        </div>
+
+        <h2 style="margin-top: 1rem">Näringsämnen per vald mängd</h2>
+        <table class="nutrient-table">
+          <thead>
+            <tr>
+              <th>Näringsämne</th>
+              <th class="num">Mängd</th>
+              <th>Enhet</th>
+              <th class="num">
+                <abbr title="Andel av total energi (protein, fett, kolhydrater, fiber, alkohol)"
+                  >E%</abbr
+                >
+              </th>
+              <th class="num">
+                <abbr
+                  title="Andel av energin från fettsyror (mättat + enkel + fleromättat), där fleromättat delas i övrigt respektive omega-3"
+                  >E% av fett</abbr
+                >
+              </th>
+            </tr>
+          </thead>
+          <tbody id="nutrient-body"></tbody>
+        </table>
+      </section>
+
+      <section class="panel" aria-labelledby="diary-heading">
+        <h2 id="diary-heading">Dagens mat</h2>
+        <p id="diary-date-line" class="meta"></p>
+        <p id="day-empty-hint" class="status">
+          Inga poster än. Välj livsmedel ovan, ange gram och klicka
+          <strong>Lägg till i dagbok</strong>.
+        </p>
+        <p id="diary-status" class="status" aria-live="polite"></p>
+        <ul id="diary-list" class="diary-list" aria-label="Dagens livsmedel"></ul>
+        <p class="meta">
+          Antal poster idag: <strong id="diary-count">0</strong>. Data sparas
+          endast i denna webbläsare (localStorage), nyckel per datum.
+        </p>
+        <button type="button" id="btn-clear-diary" class="btn btn-ghost">
+          Rensa dagens logg
+        </button>
+
+        <div id="day-summary-wrap" class="day-summary hidden">
+          <h2 style="margin-top: 1.25rem">Sammanställning för dagen</h2>
+          <p class="meta">
+            Summering av alla poster. Tabellen visar <strong>totalt intag</strong>
+            under dagen.
+          </p>
+
+          <h3>Energi</h3>
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th class="num">Värde</th>
+                <th>Enhet</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Energi</td>
+                <td class="num" id="day-summary-kcal">—</td>
+                <td>kcal (databas)</td>
+              </tr>
+              <tr>
+                <td>Energi</td>
+                <td class="num" id="day-summary-kj">—</td>
+                <td>kJ (databas)</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div id="day-pfc-wrap" class="hidden">
+            <h3>Energiprocent (E%)</h3>
+            <div class="pfc-bar" role="img" aria-label="Dagens energifördelning">
+              <span id="day-pfc-prot" style="background: #0d9488; width: 0"></span>
+              <span id="day-pfc-fat" style="background: #ca8a04; width: 0"></span>
+              <span id="day-pfc-cho" style="background: #2563eb; width: 0"></span>
+              <span id="day-pfc-fib" style="background: #78716c; width: 0"></span>
+              <span id="day-pfc-alc" style="background: #9333ea; width: 0"></span>
+            </div>
+            <div class="pfc-legend">
+              <span
+                ><span class="dot" style="background: #0d9488"></span>Protein
+                <strong id="day-leg-prot">—</strong></span
+              >
+              <span
+                ><span class="dot" style="background: #ca8a04"></span>Fett
+                <strong id="day-leg-fat">—</strong></span
+              >
+              <span
+                ><span class="dot" style="background: #2563eb"></span>Kolhydrater
+                <strong id="day-leg-cho">—</strong></span
+              >
+              <span
+                ><span class="dot" style="background: #78716c"></span>Kostfiber
+                <strong id="day-leg-fib">—</strong></span
+              >
+              <span
+                ><span class="dot" style="background: #9333ea"></span>Alkohol
+                <strong id="day-leg-alc">—</strong></span
+              >
+            </div>
+          </div>
+
+          <h3 style="margin-top: 1rem">Näringsämnen — totalt under dagen</h3>
+          <table class="nutrient-table">
+            <thead>
+              <tr>
+                <th>Näringsämne</th>
+                <th class="num">Totalt</th>
+                <th>Enhet</th>
+                <th class="num">
+                  <abbr
+                    title="Andel av total energi (protein, fett, kolhydrater, fiber, alkohol)"
+                    >E%</abbr
+                  >
+                </th>
+                <th class="num">
+                  <abbr
+                    title="Andel av energin från fettsyror (mättat + enkel + fleromättat), där fleromättat delas i övrigt respektive omega-3"
+                    >E% av fett</abbr
+                  >
+                </th>
+              </tr>
+            </thead>
+            <tbody id="day-nutrient-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer>
+        <p>
+          Data:
+          <a
+            href="https://www.livsmedelsverket.se/sok/livsmedelsdatabasen"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Livsmedelsverket — livsmedelsdatabasen</a
+          >
+          (CC BY 4.0). API:
+          <a
+            href="https://dataportal.livsmedelsverket.se/livsmedel/swagger/index.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            >öppet API</a
+          >. Denna sida är ett obundet exempel och ersätter inte
+          professionell rådgivning.
+        </p>
+      </footer>
+    </main>
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
